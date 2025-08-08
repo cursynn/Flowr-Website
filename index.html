@@ -13,6 +13,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Sparkle canvas fills the viewport and behind everything */
+  #sparkleCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
   }
 
   .container {
@@ -24,6 +37,10 @@
     position: relative;
     overflow: hidden;
     min-width: 400px;
+    /* Make transform smoother */
+    transition: transform 0.2s ease;
+    transform-style: preserve-3d;
+    z-index: 1; /* container above canvas */
   }
 
   .glow-runner {
@@ -135,6 +152,8 @@
 </style>
 </head>
 <body>
+  <canvas id="sparkleCanvas"></canvas>
+
   <div class="container">
     <span class="glow-runner"></span>
     <h1>Flowr | Sites</h1>
@@ -146,6 +165,7 @@
   </div>
 
   <script>
+    // Open links on button clicks
     document.getElementById("immortalBtn").addEventListener("click", () => {
       window.open("https://shorturl.asia/Gm6kW", "_blank");
     });
@@ -157,6 +177,126 @@
     document.getElementById("injuriesBtn").addEventListener("click", () => {
       window.open("https://shorturl.asia/5qNkC", "_blank");
     });
+
+    // Container tilt effect
+    const container = document.querySelector('.container');
+
+    container.addEventListener('mousemove', (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+
+      const offsetX = (x - centerX) / centerX;
+      const offsetY = (y - centerY) / centerY;
+
+      const maxRotate = 10;
+      const rotateX = maxRotate * -offsetY;
+      const rotateY = maxRotate * offsetX;
+
+      const maxTranslateZ = -20;
+      const distanceFromCenter = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+      const translateZ = maxTranslateZ * distanceFromCenter;
+
+      container.style.transform = `perspective(600px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(${translateZ}px)`;
+    });
+
+    container.addEventListener('mouseleave', () => {
+      container.style.transform = 'none';
+    });
+
+    // Sparkles animation
+    const canvas = document.getElementById('sparkleCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    // Resize canvas to fill screen
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Sparkle class
+    class Sparkle {
+      constructor() {
+        this.reset();
+      }
+
+      reset() {
+        // Random position anywhere on screen
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.size = Math.random() * 2 + 1; // 1 to 3 px
+        this.alpha = Math.random();
+        this.alphaChange = 0.01 + Math.random() * 0.02;
+      }
+
+      update() {
+        // Twinkle effect
+        this.alpha += this.alphaChange;
+        if (this.alpha <= 0) {
+          this.alpha = 0;
+          this.alphaChange = -this.alphaChange;
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+          this.size = Math.random() * 2 + 1;
+        } else if (this.alpha >= 1) {
+          this.alpha = 1;
+          this.alphaChange = -this.alphaChange;
+        }
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(255,255,255,${this.alpha})`;
+        ctx.shadowColor = 'white';
+        ctx.shadowBlur = 4;
+        ctx.fill();
+      }
+    }
+
+    // Create many sparkles
+    const sparkleCount = 120;
+    const sparkles = [];
+    for (let i = 0; i < sparkleCount; i++) {
+      sparkles.push(new Sparkle());
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+
+      // Get container position & size to avoid drawing sparkles inside container
+      const rect = container.getBoundingClientRect();
+
+      for (let s of sparkles) {
+        // Skip sparkles inside container area
+        if (
+          s.x > rect.left &&
+          s.x < rect.right &&
+          s.y > rect.top &&
+          s.y < rect.bottom
+        ) {
+          // reposition sparkle outside container bounds immediately
+          s.x = s.x < rect.left + rect.width / 2 ? rect.left - Math.random() * 50 : rect.right + Math.random() * 50;
+          s.y = s.y < rect.top + rect.height / 2 ? rect.top - Math.random() * 50 : rect.bottom + Math.random() * 50;
+          s.alpha = 0;
+          s.alphaChange = Math.abs(s.alphaChange);
+        }
+
+        s.update();
+        s.draw();
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
   </script>
 </body>
 </html>
